@@ -1,12 +1,11 @@
-/* eslint-disable consistent-return */
+/* eslint-disable no-underscore-dangle */
 import path from 'path';
 import fs from 'fs';
 import template from 'lodash.template';
 import some from 'lodash.some';
 import findUp from 'find-up';
 
-const resolutionCacheMap = {};
-
+const PLUGIN_NAME = 'webpack-alias-config-plugin';
 const DEFAULT_CONFIG_NAMES = [
   'alias.config.js',
   'app.config.js',
@@ -22,7 +21,7 @@ function fileExists(path) {
   }
 }
 
-function getConfigPath(filename, configPaths, findConfig) {
+function getConfigPath(context, configPaths, findConfig) {
   let conf = null;
 
   // Try all config paths and return for the first found one
@@ -38,7 +37,7 @@ function getConfigPath(filename, configPaths, findConfig) {
       resolvedConfigPath = path.resolve(process.cwd(), compiledConfigPath);
     } else {
       resolvedConfigPath = findUp.sync(compiledConfigPath, {
-        cwd: path.dirname(filename),
+        cwd: context,
         type: 'file'
       });
     }
@@ -59,50 +58,65 @@ class WebpackAliasConfigPlugin {
   /**
    * @param config
    * @param findConfig
-   * @param exts
+   * @param extensions
    * @constructor
    */
   constructor({
     config: configPaths,
     findConfig = false,
-    extensions
-  }) {
+    extensions,
+    resolve = {}
+  } = {}) {
     this.configPaths = configPaths ? [configPaths, ...DEFAULT_CONFIG_NAMES] : DEFAULT_CONFIG_NAMES;
     this.findConfig = findConfig;
     this.extensions = extensions || ['.jsx', '.js', '.json', '.css', '.scss', '.less'];
+    this.resolve = resolve;
   }
 
-  apply(resolver) {
+  apply(compiler) {
     const { configPaths } = this;
     const { findConfig } = this;
     const { extensions } = this;
+    const { resolve } = this;
 
-    resolver.plugin('normal-module-factory', (nmf) => {
-      nmf.plugin('before-resolve', (result, callback) => {
-        if (!result) return callback();
+    const resolveKeys = resolve ? Object.keys(resolve) : [];
+    const isResolveFn = typeof resolve === 'function';
+    const _beforeResolve = (filename, context) => {
+      if (!resolve) return;
+      if (isResolveFn) return resolve(filename, context);
+      const idx = resolveKeys.indexOf(filename);
+      if (idx > -1) return resolve[resolveKeys[idx]];
+    };
 
-        const filename = result.request;
+    compiler.hooks.normalModuleFactory.tap(PLUGIN_NAME, nmf => {
+      nmf.hooks.beforeResolve.tapAsync(PLUGIN_NAME, (result, callback) => {
+        if (!result) return callback(null, result);
 
-        // if it already has been resolved and cached return it
-        if (resolutionCacheMap[filename]) {
-          result.request = resolutionCacheMap[filename];
-          return callback(null, result);
+        let filename = result.request;
+        const context = result.context;
+
+        if (path.isAbsolute(filename)) return callback(null, result);
+
+        const _resolved = _beforeResolve(filename, context);
+        if (_resolved === false) return callback(null, result);
+
+        if (_resolved && typeof _resolved === 'string') {
+          if (path.isAbsolute(_resolved)) {
+            result.request = _resolved;
+            return callback(null, result);
+          }
+          filename = _resolved;
         }
 
         // Get webpack config
-        const confPath = getConfigPath(filename, configPaths, findConfig);
+        const confPath = getConfigPath(context, configPaths, findConfig);
 
         // If the config comes back as null, we didn't find it, so throw an exception.
-        if (!confPath) {
-          throw new Error(
-            `Cannot find any of these configuration files: ${configPaths.join(
-              ', '
-            )}`
-          );
-        }
+        if (!confPath) return callback(null, result);
+
         // Because of babel-register, babel is actually run on webpack config files using themselves
         // as config, leading to odd errors
-        if (filename === path.resolve(confPath)) return;
+        if (filename === path.resolve(confPath)) return callback(null, result);
 
         let aliasConf;
         let extensionsConf;
@@ -111,7 +125,7 @@ class WebpackAliasConfigPlugin {
 
         let cache = cached[confPath];
         if (cache) {
-          if (!cache.conf) return;
+          if (!cache.conf) return callback(null, result);
           if (cache.error) throw cache.error;
 
           // eslint-disable-next-line
@@ -128,7 +142,7 @@ class WebpackAliasConfigPlugin {
 
           // if the object is empty, we might be in a dependency of the config - bail without warning
           if (!Object.keys(conf).length) {
-            return;
+            return callback(null, result);
           }
 
           cwd = path.dirname(confPath);
@@ -172,7 +186,7 @@ class WebpackAliasConfigPlugin {
 
             // if the object is empty, bail
             if (!Object.keys(aliasConf).length) {
-              return;
+              return callback(null, result);
             }
 
             // reduce the configs to a single extensions array
@@ -205,7 +219,9 @@ class WebpackAliasConfigPlugin {
             if (!extensionsConf) extensionsConf = extensions;
           }
 
-          cache.aliases = Object.keys(aliasConf);
+          aliases = aliasConf ? Object.keys(aliasConf) : [];
+
+          cache.aliases = aliases;
           cache.aliasConf = aliasConf;
           cache.extensionsConf = extensionsConf;
         }
@@ -219,10 +235,9 @@ class WebpackAliasConfigPlugin {
         }
 
         filenames[0] = aliasConf[aliases[aliasIndex]];
-        const newFilePath = filenames.join('/');
+        const newFilePath = path.resolve(...filenames);
 
         if (fileExists(newFilePath)) {
-          resolutionCacheMap[result.request] = newFilePath;
           result.request = newFilePath;
           return callback(null, result);
         } else {
@@ -235,7 +250,6 @@ class WebpackAliasConfigPlugin {
               const newFilePathWithExt = `${newFilePath}${extension}`;
               if (!foundFile && fs.existsSync(newFilePathWithExt)) {
                 foundFile = true;
-                resolutionCacheMap[result.request] = newFilePathWithExt;
                 result.request = newFilePathWithExt;
                 return callback(null, result);
               }

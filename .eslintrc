@@ -8,6 +8,7 @@
     "no-else-return": ["off"],
     "arrow-parens": ["off"],
     "comma-dangle": ["error", "never"],
+    "consistent-return": ["off"],
     "max-len": ["error", 150],
     "default-case": ["error"],
     "no-use-before-define": ["error"],
@@ -25,6 +26,8 @@
         "ignoreReadBeforeAssign": false
       }
     ],
+    "prefer-destructuring": ["off"],
+
     "import/no-dynamic-require": "off"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "webpack-alias-config-plugin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Webpack plugin that enables overriding module import paths",
   "main": "lib/index.js",
   "files": [
