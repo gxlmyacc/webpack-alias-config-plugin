@@ -1,0 +1,55 @@
+{
+  "name": "webpack-alias-config-plugin",
+  "version": "0.0.1",
+  "description": "Webpack plugin that enables overriding module import paths",
+  "main": "lib/index.js",
+  "files": [
+    "lib/index.js"
+  ],
+  "scripts": {
+    "build": "babel src/index.js -d lib",
+    "prepublish": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gxlmyacc/webpack-alias-config-plugin.git"
+  },
+  "keywords": [
+    "webpack",
+    "path",
+    "plugin",
+    "resolver",
+    "alias"
+  ],
+  "author": "gxlmyacc <gxl.mymail@163.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gxlmyacc/webpack-alias-config-plugin/issues"
+  },
+  "homepage": "https://github.com/gxlmyacc/webpack-alias-config-plugin#readme",
+  "dependencies": {
+    "find-up": "^4.1.0",
+    "lodash.some": "^4.6.0",
+    "lodash.template": "^4.5.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.2.3",
+    "@babel/core": "^7.2.2",
+    "@babel/plugin-proposal-export-default-from": "^7.2.0",
+    "@babel/plugin-proposal-export-namespace-from": "^7.2.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.3.1",
+    "@babel/plugin-transform-destructuring": "^7.2.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.2.0",
+    "@babel/plugin-transform-parameters": "^7.2.0",
+    "@babel/plugin-transform-spread": "^7.2.2",
+    "@babel/plugin-transform-strict-mode": "^7.2.0",
+    "@babel/register": "^7.0.0",
+    "babel-core": "^7.0.0-bridge.0",
+    "eslint": "^5.12.1",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.15.0",
+    "eslint-plugin-jsx-a11y": "^6.2.0",
+    "eslint-plugin-react": "^7.12.4",
+    "webpack-merge": "^4.2.1"
+  }
+}
